@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 interface Insight {
   id: string;
@@ -44,6 +44,8 @@ function SparkleIcon() {
 function TypingText({ text, onComplete }: { text: string; onComplete?: () => void }) {
   const [displayed, setDisplayed] = useState("");
   const indexRef = useRef(0);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     indexRef.current = 0;
@@ -55,12 +57,12 @@ function TypingText({ text, onComplete }: { text: string; onComplete?: () => voi
         setDisplayed(text.slice(0, indexRef.current));
       } else {
         clearInterval(interval);
-        onComplete?.();
+        onCompleteRef.current?.();
       }
     }, 8);
 
     return () => clearInterval(interval);
-  }, [text, onComplete]);
+  }, [text]);
 
   return (
     <span>
