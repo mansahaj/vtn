@@ -57,7 +57,7 @@ export default function HeatmapCell({
               {overloadRatio > 1.0 && serviceRatePerStaff > 0 && (
                 <div>
                   <span className="text-yellow-400 font-semibold">
-                    +{Math.ceil((predictedTransactions - capacity) / serviceRatePerStaff)} staff needed
+                    +{Math.ceil((predictedTransactions - capacity) / serviceRatePerStaff)} portable stations needed
                   </span>
                 </div>
               )}
