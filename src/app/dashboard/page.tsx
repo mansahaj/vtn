@@ -56,12 +56,14 @@ export default function DashboardPage() {
           value={summary.totalRevenueAtRisk}
           sublabel="Across all stands"
           variant="danger"
+          tooltip="Estimated dollar value of transactions lost when predicted demand exceeds stand service capacity across the entire game"
         />
         <KPICard
           label="Recovery Potential"
           value={summary.recoveryPotential}
           sublabel="With optimal staff reallocation"
           variant="success"
+          tooltip="How much revenue could be recovered by optimally redistributing staff from underloaded to overloaded stands"
         />
         <KPICard
           label="Top Bottleneck"
@@ -72,11 +74,13 @@ export default function DashboardPage() {
               : undefined
           }
           variant="warning"
+          tooltip="The stand with the highest total revenue at risk across all time buckets during the game"
         />
         <KPICard
           label="Expected Attendance"
           value={forecast.game.expectedAttendance.toLocaleString()}
           sublabel={forecast.game.venue}
+          tooltip="Scanned attendance used as a scaling factor for demand forecasting"
         />
       </div>
 
