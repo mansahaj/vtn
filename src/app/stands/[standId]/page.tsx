@@ -27,11 +27,11 @@ export default function StandDetailPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <KPICard label="Revenue at Risk" value={Math.round(totalRevenueAtRisk)} variant="danger" />
-        <KPICard label="Peak Overload" value={`${(peakOverloadRatio * 100).toFixed(0)}%`} variant={peakOverloadRatio > 1 ? "danger" : "success"} />
-        <KPICard label="Staff" value={String(stand.staffCount)} />
-        <KPICard label="Avg Transaction" value={stand.avgTransactionValue} />
-        <KPICard label="Service Rate" value={`${stand.serviceRatePerStaff}/staff/10min`} />
+        <KPICard label="Revenue at Risk" value={Math.round(totalRevenueAtRisk)} variant="danger" tooltip="Total estimated revenue lost at this stand when demand exceeds capacity" />
+        <KPICard label="Peak Overload" value={`${(peakOverloadRatio * 100).toFixed(0)}%`} variant={peakOverloadRatio > 1 ? "danger" : "success"} tooltip="Highest demand-to-capacity ratio across all time buckets. Over 100% means demand exceeds capacity" />
+        <KPICard label="Staff" value={String(stand.staffCount)} tooltip="Number of staff currently assigned to this stand" />
+        <KPICard label="Avg Transaction" value={stand.avgTransactionValue} tooltip="Average dollar value per transaction at this stand based on historical data" />
+        <KPICard label="Service Rate" value={`${stand.serviceRatePerStaff}/staff/10min`} tooltip="Number of transactions one staff member can process per 10-minute window" />
       </div>
 
       <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">

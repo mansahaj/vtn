@@ -153,12 +153,14 @@ export default function SimulatorPage() {
           value={simResult?.originalRevenueAtRisk ?? forecast.summary.totalRevenueAtRisk}
           sublabel="Before staff changes"
           variant="danger"
+          tooltip="Baseline revenue at risk with the current staff configuration before any changes"
         />
         <KPICard
           label="New Revenue at Risk"
           value={simResult?.newRevenueAtRisk ?? forecast.summary.totalRevenueAtRisk}
           sublabel={simResult ? "After simulation" : "Awaiting changes"}
           variant={simResult && simResult.newRevenueAtRisk < simResult.originalRevenueAtRisk ? "success" : "danger"}
+          tooltip="Projected revenue at risk after your proposed staff redeployment changes"
         />
         <KPICard
           label="Recovery / Delta"
