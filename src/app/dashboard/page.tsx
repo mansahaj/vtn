@@ -3,6 +3,7 @@
 import { useGameContext } from "@/lib/game-context";
 import KPICard from "@/components/shared/KPICard";
 import AIInsights from "@/components/shared/AIInsights";
+import DataContextBadge from "@/components/shared/DataContextBadge";
 
 function OverloadBadge({ ratio }: { ratio: number }) {
   let color = "bg-green-900 text-green-300";
@@ -44,7 +45,10 @@ export default function DashboardPage() {
       {/* Page header with hero attendance */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Executive Dashboard</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-white">Executive Dashboard</h1>
+            <DataContextBadge status={forecast.game.status} />
+          </div>
           <p className="text-sm text-gray-400 mt-1">
             {forecast.game.opponent} &mdash; {forecast.game.date} &middot; {forecast.game.venue}
           </p>
@@ -132,7 +136,9 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top 3 Bottleneck Stands */}
         <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
-          <h2 className="text-lg font-semibold text-white mb-4">Top 3 Bottleneck Stands</h2>
+          <h2 className="text-lg font-semibold text-white mb-4">
+            Top 3 {forecast.game.status === "completed" ? "" : "Predicted "}Bottlenecks
+          </h2>
           <div className="space-y-3">
             {summary.topBottleneckStands.slice(0, 3).map((sf, i) => (
               <div
@@ -166,7 +172,9 @@ export default function DashboardPage() {
 
         {/* Top 3 Stress Windows */}
         <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
-          <h2 className="text-lg font-semibold text-white mb-4">Top 3 Stress Windows</h2>
+          <h2 className="text-lg font-semibold text-white mb-4">
+            Top 3 {forecast.game.status === "completed" ? "" : "Predicted "}Stress Windows
+          </h2>
           <div className="space-y-3">
             {summary.topStressWindows.slice(0, 3).map((sw, i) => {
               const matchingEvent = forecast.events.find((e) => e.bucket === sw.bucket);

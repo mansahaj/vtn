@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useGameContext } from "@/lib/game-context";
 import { LiveStatusResponse } from "@/lib/types";
+import DataContextBadge from "@/components/shared/DataContextBadge";
 import {
   LineChart,
   Line,
@@ -209,7 +210,10 @@ export default function DemandPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Demand Curve</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-white">Demand Curve</h1>
+            <DataContextBadge status={forecast.game.status} />
+          </div>
           <p className="text-sm text-gray-400 mt-1">
             Predicted transaction volume over time &mdash; {forecast.game.opponent} on{" "}
             {forecast.game.date}

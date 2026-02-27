@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useGameContext } from "@/lib/game-context";
 import HeatmapGrid from "@/components/heatmap/HeatmapGrid";
 import { generateRecommendedMoves } from "@/lib/calculations";
+import DataContextBadge from "@/components/shared/DataContextBadge";
 
 const LEGEND_STEPS = [
   { label: "<50%", color: "bg-green-900" },
@@ -57,7 +58,10 @@ export default function HeatmapPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Stand Stress Heatmap</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-white">Stand Stress Heatmap</h1>
+          <DataContextBadge status={forecast.game.status} />
+        </div>
         <p className="text-gray-400 text-sm mt-1">
           Visualize predicted demand vs. capacity across all stands and time
           windows. Hover over cells for details.

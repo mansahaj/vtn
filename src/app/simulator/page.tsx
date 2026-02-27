@@ -4,7 +4,8 @@ import { useGameContext } from "@/lib/game-context";
 import KPICard from "@/components/shared/KPICard";
 import AIInsights from "@/components/shared/AIInsights";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { SimulationResponse } from "@/lib/types";
+import { SimulationResponse, RecommendedMove } from "@/lib/types";
+import DataContextBadge from "@/components/shared/DataContextBadge";
 
 function HeaderTooltip({ text }: { text: string }) {
   const [show, setShow] = useState(false);
@@ -37,7 +38,7 @@ export default function SimulatorPage() {
   const [simError, setSimError] = useState<string | null>(null);
   const [simTimestamp, setSimTimestamp] = useState<string | null>(null);
   const [simDurationMs, setSimDurationMs] = useState<number | null>(null);
-  const [appliedMoves, setAppliedMoves] = useState<Set<string>>(new Set());
+  const [appliedMoves, setAppliedMoves] = useState<Map<string, RecommendedMove>>(new Map());
   const initializedGameId = useRef<string | null>(null);
   const prevSimResultRef = useRef<SimulationResponse | null>(null);
 
@@ -54,14 +55,14 @@ export default function SimulatorPage() {
     setServiceRateConfig(rates);
     setSimResult(null);
     setSimError(null);
-    setAppliedMoves(new Set());
+    setAppliedMoves(new Map());
     initializedGameId.current = selectedGameId;
   }, [forecast, selectedGameId]);
 
   // Reset appliedMoves when simResult changes (new recommendations)
   useEffect(() => {
     if (simResult && simResult !== prevSimResultRef.current) {
-      setAppliedMoves(new Set());
+      setAppliedMoves(new Map());
       prevSimResultRef.current = simResult;
     }
   }, [simResult]);
@@ -111,12 +112,28 @@ export default function SimulatorPage() {
   }, []);
 
   const applyRecommendedMove = useCallback(
-    (fromStandId: string, toStandId: string, count: number, moveKey: string) => {
-      setAppliedMoves((prev) => new Set(prev).add(moveKey));
+    (move: RecommendedMove, moveKey: string) => {
+      setAppliedMoves((prev) => new Map(prev).set(moveKey, move));
       setStaffConfig((prev) => ({
         ...prev,
-        [fromStandId]: Math.max(0, (prev[fromStandId] ?? 0) - count),
-        [toStandId]: (prev[toStandId] ?? 0) + count,
+        [move.fromStandId]: Math.max(0, (prev[move.fromStandId] ?? 0) - move.staffCount),
+        [move.toStandId]: (prev[move.toStandId] ?? 0) + move.staffCount,
+      }));
+    },
+    []
+  );
+
+  const undoMove = useCallback(
+    (moveKey: string, move: RecommendedMove) => {
+      setAppliedMoves((prev) => {
+        const next = new Map(prev);
+        next.delete(moveKey);
+        return next;
+      });
+      setStaffConfig((prev) => ({
+        ...prev,
+        [move.fromStandId]: (prev[move.fromStandId] ?? 0) + move.staffCount,
+        [move.toStandId]: Math.max(0, (prev[move.toStandId] ?? 0) - move.staffCount),
       }));
     },
     []
@@ -173,7 +190,10 @@ export default function SimulatorPage() {
       {/* Page header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Staff Redeployment Simulator</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-white">Staff Redeployment Simulator</h1>
+            <DataContextBadge status={forecast.game.status} />
+          </div>
           <p className="text-sm text-gray-400 mt-1">
             {forecast.game.opponent} &mdash; {forecast.game.date} &middot; {forecast.game.venue}
           </p>
@@ -491,74 +511,112 @@ export default function SimulatorPage() {
       </div>
 
       {/* Recommended Moves */}
-      {simResult && simResult.recommendedMoves.length > 0 && (
-        <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
-          <h2 className="text-lg font-semibold text-white mb-4">Recommended Moves</h2>
-          <div className="space-y-3">
-            {simResult.recommendedMoves.map((move, i) => {
-              const moveKey = `${move.fromStandId}-${move.toStandId}-${move.window}`;
-              const isApplied = appliedMoves.has(moveKey);
-              return (
-                <div
-                  key={`${moveKey}-${i}`}
-                  className="flex items-center justify-between gap-4 py-3 px-4 bg-gray-800 rounded-lg"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm">
-                      Move{" "}
-                      <span className="font-semibold text-blue-400">
-                        {move.staffCount} staff
-                      </span>{" "}
-                      from{" "}
-                      <span className="font-medium text-gray-200">
-                        {move.fromStandName}
-                      </span>{" "}
-                      to{" "}
-                      <span className="font-medium text-gray-200">
-                        {move.toStandName}
-                      </span>{" "}
-                      during{" "}
-                      <span className="font-mono text-yellow-400">{move.window}</span>
-                      {" "}&mdash;{" "}saves{" "}
-                      <span className="font-semibold text-green-400">
-                        ${move.revenueImpact.toLocaleString()}
-                      </span>
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">{move.reason}</p>
-                  </div>
-                  <button
-                    onClick={() =>
-                      applyRecommendedMove(
-                        move.fromStandId,
-                        move.toStandId,
-                        move.staffCount,
-                        moveKey
-                      )
-                    }
-                    disabled={isApplied}
-                    className={`shrink-0 px-4 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${
-                      isApplied
-                        ? "bg-green-800 text-green-200 cursor-default focus:ring-green-500"
-                        : "bg-blue-600 text-white hover:bg-blue-500 focus:ring-blue-500"
-                    }`}
+      {simResult && (() => {
+        const pendingMoves = simResult.recommendedMoves.filter((move) => {
+          const moveKey = `${move.fromStandId}-${move.toStandId}-${move.window}`;
+          return !appliedMoves.has(moveKey);
+        });
+        return pendingMoves.length > 0 ? (
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
+            <h2 className="text-lg font-semibold text-white mb-4">Recommended Moves</h2>
+            <div className="space-y-3">
+              {pendingMoves.map((move, i) => {
+                const moveKey = `${move.fromStandId}-${move.toStandId}-${move.window}`;
+                return (
+                  <div
+                    key={`${moveKey}-${i}`}
+                    className="flex items-center justify-between gap-4 py-3 px-4 bg-gray-800 rounded-lg"
                   >
-                    {isApplied ? "Applied \u2713" : "Apply"}
-                  </button>
-                </div>
-              );
-            })}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm">
+                        Move{" "}
+                        <span className="font-semibold text-blue-400">
+                          {move.staffCount} staff
+                        </span>{" "}
+                        from{" "}
+                        <span className="font-medium text-gray-200">
+                          {move.fromStandName}
+                        </span>{" "}
+                        to{" "}
+                        <span className="font-medium text-gray-200">
+                          {move.toStandName}
+                        </span>{" "}
+                        during{" "}
+                        <span className="font-mono text-yellow-400">{move.window}</span>
+                        {" "}&mdash;{" "}saves{" "}
+                        <span className="font-semibold text-green-400">
+                          ${move.revenueImpact.toLocaleString()}
+                        </span>
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{move.reason}</p>
+                    </div>
+                    <button
+                      onClick={() => applyRecommendedMove(move, moveKey)}
+                      className="shrink-0 px-4 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 bg-blue-600 text-white hover:bg-blue-500 focus:ring-blue-500"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        ) : simResult.recommendedMoves.length === 0 ? (
+          <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
+            <h2 className="text-lg font-semibold text-white mb-2">Recommended Moves</h2>
+            <p className="text-gray-400 text-sm">
+              No additional redeployment recommendations at this time. The current configuration
+              appears optimal.
+            </p>
+          </div>
+        ) : null;
+      })()}
 
-      {/* Empty recommended moves state */}
-      {simResult && simResult.recommendedMoves.length === 0 && (
-        <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
-          <h2 className="text-lg font-semibold text-white mb-2">Recommended Moves</h2>
-          <p className="text-gray-400 text-sm">
-            No additional redeployment recommendations at this time. The current configuration
-            appears optimal.
-          </p>
+      {/* Applied Changes */}
+      {appliedMoves.size > 0 && (
+        <div className="bg-gray-900 border border-green-800 rounded-lg p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="w-2 h-2 rounded-full bg-green-400" />
+            <h2 className="text-lg font-semibold text-white">Applied Changes</h2>
+            <span className="text-xs text-gray-400">({appliedMoves.size} move{appliedMoves.size !== 1 ? "s" : ""})</span>
+          </div>
+          <div className="space-y-3">
+            {Array.from(appliedMoves.entries()).map(([moveKey, move]) => (
+              <div
+                key={moveKey}
+                className="flex items-center justify-between gap-4 py-3 px-4 bg-green-950/30 border border-green-900/50 rounded-lg"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm">
+                    Move{" "}
+                    <span className="font-semibold text-blue-400">
+                      {move.staffCount} staff
+                    </span>{" "}
+                    from{" "}
+                    <span className="font-medium text-gray-200">
+                      {move.fromStandName}
+                    </span>{" "}
+                    to{" "}
+                    <span className="font-medium text-gray-200">
+                      {move.toStandName}
+                    </span>{" "}
+                    during{" "}
+                    <span className="font-mono text-yellow-400">{move.window}</span>
+                    {" "}&mdash;{" "}saves{" "}
+                    <span className="font-semibold text-green-400">
+                      ${move.revenueImpact.toLocaleString()}
+                    </span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => undoMove(moveKey, move)}
+                  className="shrink-0 px-4 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white focus:ring-gray-500"
+                >
+                  Undo
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
