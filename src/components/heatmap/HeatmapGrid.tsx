@@ -8,9 +8,10 @@ interface HeatmapGridProps {
   stands: StandForecast[];
   timeBuckets: string[];
   events: GameEvent[];
+  currentBucketIndex?: number | null;
 }
 
-export default function HeatmapGrid({ stands, timeBuckets, events }: HeatmapGridProps) {
+export default function HeatmapGrid({ stands, timeBuckets, events, currentBucketIndex }: HeatmapGridProps) {
   const router = useRouter();
 
   const eventBuckets = new Set(events.map((e) => e.bucket));
@@ -36,11 +37,15 @@ export default function HeatmapGrid({ stands, timeBuckets, events }: HeatmapGrid
         </div>
 
         {/* Time bucket header labels */}
-        {timeBuckets.map((bucket) => (
+        {timeBuckets.map((bucket, idx) => (
           <div
             key={bucket}
             className={`bg-gray-950 flex items-end justify-center pb-1 h-16 ${
-              eventBuckets.has(bucket) ? "ring-2 ring-blue-400 ring-inset" : ""
+              currentBucketIndex != null && currentBucketIndex === idx
+                ? "ring-2 ring-yellow-400 ring-inset"
+                : eventBuckets.has(bucket)
+                  ? "ring-2 ring-blue-400 ring-inset"
+                  : ""
             }`}
           >
             <span
@@ -56,18 +61,24 @@ export default function HeatmapGrid({ stands, timeBuckets, events }: HeatmapGrid
         <div className="sticky left-0 z-20 bg-gray-950 flex items-center p-2">
           <span className="text-[10px] text-gray-500 font-medium">Events</span>
         </div>
-        {timeBuckets.map((bucket) => (
+        {timeBuckets.map((bucket, idx) => (
           <div
             key={`event-${bucket}`}
             className={`bg-gray-950 flex items-center justify-center h-6 ${
-              eventBuckets.has(bucket) ? "ring-2 ring-blue-400 ring-inset" : ""
+              currentBucketIndex != null && currentBucketIndex === idx
+                ? "ring-2 ring-yellow-400 ring-inset"
+                : eventBuckets.has(bucket)
+                  ? "ring-2 ring-blue-400 ring-inset"
+                  : ""
             }`}
           >
-            {eventLabelMap.has(bucket) && (
+            {currentBucketIndex != null && currentBucketIndex === idx ? (
+              <span className="text-[8px] text-yellow-400 font-bold">NOW</span>
+            ) : eventLabelMap.has(bucket) ? (
               <span className="text-[8px] text-blue-400 font-medium truncate px-0.5">
                 {eventLabelMap.get(bucket)}
               </span>
-            )}
+            ) : null}
           </div>
         ))}
 
@@ -106,9 +117,11 @@ export default function HeatmapGrid({ stands, timeBuckets, events }: HeatmapGrid
                 <div
                   key={`${sf.stand.id}-${bucket}`}
                   className={
-                    eventBuckets.has(bucket)
-                      ? "ring-2 ring-blue-400 ring-inset"
-                      : ""
+                    currentBucketIndex != null && currentBucketIndex === bucketIdx
+                      ? "ring-2 ring-yellow-400 ring-inset"
+                      : eventBuckets.has(bucket)
+                        ? "ring-2 ring-blue-400 ring-inset"
+                        : ""
                   }
                 >
                   <HeatmapCell
@@ -116,6 +129,7 @@ export default function HeatmapGrid({ stands, timeBuckets, events }: HeatmapGrid
                     revenueAtRisk={bucketData.revenueAtRisk}
                     predictedTransactions={bucketData.predictedTransactions}
                     capacity={bucketData.capacity}
+                    serviceRatePerStaff={sf.stand.serviceRatePerStaff}
                     onClick={() => router.push(`/stands/${sf.stand.id}`)}
                   />
                 </div>

@@ -42,19 +42,37 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 p-6">
-      {/* Page header */}
+      {/* Page header with hero attendance */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Executive Dashboard</h1>
           <p className="text-sm text-gray-400 mt-1">
             {forecast.game.opponent} &mdash; {forecast.game.date} &middot; {forecast.game.venue}
           </p>
+          {lastUpdatedAt && (
+            <span className="text-xs text-gray-400 font-mono mt-1 inline-block">
+              Last updated: {lastUpdatedAt}
+            </span>
+          )}
         </div>
-        {lastUpdatedAt && (
-          <span className="text-xs text-gray-400 font-mono mt-1">
-            Last updated: {lastUpdatedAt}
-          </span>
-        )}
+        <div className="flex items-center gap-3 bg-gray-900 border border-gray-700 rounded-lg px-6 py-4">
+          {/* People icon */}
+          <svg
+            className="w-10 h-10 text-gray-400 flex-shrink-0"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
+          </svg>
+          <div className="text-right">
+            <p className="text-xs text-gray-400 uppercase tracking-wide">Attendance</p>
+            <p className="text-5xl font-bold text-white leading-tight">
+              {forecast.game.expectedAttendance.toLocaleString()}
+            </p>
+            <p className="text-sm text-gray-400">{forecast.game.venue}</p>
+          </div>
+        </div>
       </div>
 
       {/* Processing timer badge */}
@@ -94,10 +112,20 @@ export default function DashboardPage() {
           tooltip="The stand with the highest total revenue at risk across all time buckets during the game"
         />
         <KPICard
-          label="Expected Attendance"
-          value={forecast.game.expectedAttendance.toLocaleString()}
-          sublabel={forecast.game.venue}
-          tooltip="Scanned attendance used as a scaling factor for demand forecasting"
+          label="Stands Monitored"
+          value={forecast.stands.length}
+          sublabel={
+            (() => {
+              const cats: Record<string, number> = {};
+              forecast.stands.forEach((s) => {
+                cats[s.stand.category] = (cats[s.stand.category] || 0) + 1;
+              });
+              return Object.entries(cats)
+                .map(([cat, count]) => `${count} ${cat}`)
+                .join(", ");
+            })()
+          }
+          tooltip="Total number of concession and retail stands included in the forecast model"
         />
       </div>
 

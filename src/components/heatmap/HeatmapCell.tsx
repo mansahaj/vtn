@@ -8,6 +8,7 @@ interface HeatmapCellProps {
   revenueAtRisk: number;
   predictedTransactions: number;
   capacity: number;
+  serviceRatePerStaff: number;
   onClick?: () => void;
 }
 
@@ -16,6 +17,7 @@ export default function HeatmapCell({
   revenueAtRisk,
   predictedTransactions,
   capacity,
+  serviceRatePerStaff,
   onClick,
 }: HeatmapCellProps) {
   const [hovered, setHovered] = useState(false);
@@ -52,6 +54,13 @@ export default function HeatmapCell({
                 <span className="text-gray-500">Capacity:</span>{" "}
                 <span className="text-white">{capacity}</span>
               </div>
+              {overloadRatio > 1.0 && serviceRatePerStaff > 0 && (
+                <div>
+                  <span className="text-yellow-400 font-semibold">
+                    +{Math.ceil((predictedTransactions - capacity) / serviceRatePerStaff)} staff needed
+                  </span>
+                </div>
+              )}
             </div>
             <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-700" />
           </div>
