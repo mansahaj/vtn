@@ -1,0 +1,56 @@
+[
+  {
+    "id": "s1",
+    "name": "Island Canteen",
+    "category": "food",
+    "location": "Save-On-Foods Memorial Centre",
+    "staffCount": 8,
+    "avgTransactionValue": 11.0,
+    "serviceRatePerStaff": 6
+  },
+  {
+    "id": "s2",
+    "name": "Island Slice",
+    "category": "food",
+    "location": "Save-On-Foods Memorial Centre",
+    "staffCount": 7,
+    "avgTransactionValue": 9.5,
+    "serviceRatePerStaff": 6
+  },
+  {
+    "id": "s3",
+    "name": "Phillips Bar",
+    "category": "beer",
+    "location": "Save-On-Foods Memorial Centre",
+    "staffCount": 4,
+    "avgTransactionValue": 14.5,
+    "serviceRatePerStaff": 6
+  },
+  {
+    "id": "s4",
+    "name": "Portable Stations",
+    "category": "beer",
+    "location": "Save-On-Foods Memorial Centre",
+    "staffCount": 6,
+    "avgTransactionValue": 12.0,
+    "serviceRatePerStaff": 6
+  },
+  {
+    "id": "s5",
+    "name": "ReMax Fan Deck",
+    "category": "premium",
+    "location": "Save-On-Foods Memorial Centre",
+    "staffCount": 6,
+    "avgTransactionValue": 16.0,
+    "serviceRatePerStaff": 6
+  },
+  {
+    "id": "s6",
+    "name": "TacoTacoTaco",
+    "category": "food",
+    "location": "Save-On-Foods Memorial Centre",
+    "staffCount": 5,
+    "avgTransactionValue": 10.5,
+    "serviceRatePerStaff": 6
+  }
+]
