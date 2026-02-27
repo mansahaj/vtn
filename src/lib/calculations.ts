@@ -61,8 +61,11 @@ export function generateRecommendedMoves(
       .sort((a, b) => b.b.revenueAtRisk - a.b.revenueAtRisk);
 
     for (const over of overloaded) {
+      const neededStaff = over.sf.stand.serviceRatePerStaff > 0
+        ? Math.min(2, Math.ceil((over.b.predictedTransactions - over.b.capacity) / over.sf.stand.serviceRatePerStaff))
+        : 1;
       const impact = Math.min(
-        over.sf.stand.serviceRatePerStaff * over.sf.stand.avgTransactionValue,
+        neededStaff * over.sf.stand.serviceRatePerStaff * over.sf.stand.avgTransactionValue,
         over.b.revenueAtRisk
       );
 
@@ -71,10 +74,11 @@ export function generateRecommendedMoves(
           targetStandId: over.sf.stand.id,
           targetStandName: over.sf.stand.name,
           targetLocation: over.sf.stand.location,
-          staffCount: 1,
+          targetCategory: over.sf.stand.category,
+          staffCount: neededStaff,
           window: bucket,
           revenueImpact: Math.round(impact),
-          reason: `${over.sf.stand.name} at ${(over.b.overloadRatio * 100).toFixed(0)}% capacity — portable station reduces queue overflow`,
+          reason: `${over.sf.stand.name} at ${(over.b.overloadRatio * 100).toFixed(0)}% capacity — portable ${over.sf.stand.category} station reduces queue overflow`,
         });
       }
     }

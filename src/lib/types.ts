@@ -73,6 +73,7 @@ export interface PortableStationRecommendation {
   targetStandId: string;
   targetStandName: string;
   targetLocation: string;
+  targetCategory: string;
   staffCount: number;
   window: TimeBucket;
   revenueImpact: number;

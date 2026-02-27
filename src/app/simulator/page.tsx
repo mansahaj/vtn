@@ -38,7 +38,9 @@ export default function SimulatorPage() {
   const [simError, setSimError] = useState<string | null>(null);
   const [simTimestamp, setSimTimestamp] = useState<string | null>(null);
   const [simDurationMs, setSimDurationMs] = useState<number | null>(null);
-  const [appliedMoves, setAppliedMoves] = useState<Map<string, PortableStationRecommendation>>(new Map());
+  const [appliedMoves, setAppliedMoves] = useState<Map<string, { rec: PortableStationRecommendation; deployedAt: number }>>(new Map());
+  const [deployingKeys, setDeployingKeys] = useState<Map<string, { rec: PortableStationRecommendation; countdown: number }>>(new Map());
+  const [, setUndoTick] = useState(0); // force re-render for undo countdowns
   const initializedGameId = useRef<string | null>(null);
   const prevSimResultRef = useRef<SimulationResponse | null>(null);
 
@@ -64,13 +66,46 @@ export default function SimulatorPage() {
     initializedGameId.current = selectedGameId;
   }, [forecast, selectedGameId]);
 
-  // Reset appliedMoves when simResult changes (new recommendations)
+  // Track simResult changes (keep appliedMoves across re-simulations)
   useEffect(() => {
     if (simResult && simResult !== prevSimResultRef.current) {
-      setAppliedMoves(new Map());
       prevSimResultRef.current = simResult;
     }
   }, [simResult]);
+
+  // Deploy countdown interval (1s tick)
+  useEffect(() => {
+    if (deployingKeys.size === 0) return;
+    const interval = setInterval(() => {
+      setDeployingKeys((prev) => {
+        const next = new Map(prev);
+        const entries = Array.from(next.entries());
+        for (const [key, val] of entries) {
+          if (val.countdown <= 1) {
+            next.delete(key);
+            setAppliedMoves((am) => new Map(am).set(key, { rec: val.rec, deployedAt: Date.now() }));
+            setStaffConfig((sc) => ({
+              ...sc,
+              [val.rec.targetStandId]: (sc[val.rec.targetStandId] ?? 0) + val.rec.staffCount,
+            }));
+          } else {
+            next.set(key, { ...val, countdown: val.countdown - 1 });
+          }
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [deployingKeys.size]);
+
+  // Undo countdown tick (1s) for deployed stations
+  useEffect(() => {
+    if (appliedMoves.size === 0) return;
+    const interval = setInterval(() => {
+      setUndoTick((t) => t + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [appliedMoves.size]);
 
   // Debounced simulation call
   useEffect(() => {
@@ -121,13 +156,20 @@ export default function SimulatorPage() {
     setServiceRateConfig((prev) => ({ ...prev, [standId]: Math.max(0, value) }));
   }, []);
 
-  const applyRecommendation = useCallback(
+  const startDeploy = useCallback(
     (rec: PortableStationRecommendation, recKey: string) => {
-      setAppliedMoves((prev) => new Map(prev).set(recKey, rec));
-      setStaffConfig((prev) => ({
-        ...prev,
-        [rec.targetStandId]: (prev[rec.targetStandId] ?? 0) + rec.staffCount,
-      }));
+      setDeployingKeys((prev) => new Map(prev).set(recKey, { rec, countdown: 3 }));
+    },
+    []
+  );
+
+  const cancelDeploy = useCallback(
+    (recKey: string) => {
+      setDeployingKeys((prev) => {
+        const next = new Map(prev);
+        next.delete(recKey);
+        return next;
+      });
     },
     []
   );
@@ -519,6 +561,73 @@ export default function SimulatorPage() {
                   </tr>
                 );
               })}
+              {/* Deployed Portable Stations divider + rows */}
+              {appliedMoves.size > 0 && (
+                <>
+                  <tr>
+                    <td colSpan={7} className="px-5 py-3 bg-gray-800/80">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-green-400" />
+                        <span className="text-sm font-semibold text-white">Deployed Portable Stations</span>
+                        <span className="text-xs text-gray-400">({appliedMoves.size})</span>
+                      </div>
+                    </td>
+                  </tr>
+                  {Array.from(appliedMoves.entries()).map(([recKey, { rec, deployedAt }]) => {
+                    const elapsed = Date.now() - deployedAt;
+                    const UNDO_WINDOW = 300000; // 5 minutes
+                    const canUndo = elapsed < UNDO_WINDOW;
+                    const remainingSec = Math.max(0, Math.ceil((UNDO_WINDOW - elapsed) / 1000));
+                    const remainingMin = Math.floor(remainingSec / 60);
+                    const remainingSecPart = remainingSec % 60;
+                    const undoLabel = `Undo (${remainingMin}:${remainingSecPart.toString().padStart(2, "0")})`;
+
+                    return (
+                      <tr key={`deployed-${recKey}`} className="bg-green-950/20 hover:bg-green-950/30 transition-colors">
+                        <td className="px-5 py-3">
+                          <p className="text-white font-medium">
+                            Portable {rec.targetCategory} station
+                          </p>
+                          <p className="text-xs text-gray-500">Near {rec.targetStandName}</p>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-900/50 text-green-300">
+                            {rec.targetCategory}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-center">
+                          <span className="text-gray-500 font-mono">—</span>
+                        </td>
+                        <td className="px-5 py-3 text-center">
+                          <span className="text-green-400 font-mono font-medium">+{rec.staffCount}</span>
+                        </td>
+                        <td className="px-5 py-3 text-center">
+                          <span className="text-gray-400 font-mono text-xs">{rec.window}</span>
+                        </td>
+                        <td className="px-5 py-3 text-center">
+                          <span className="text-green-400 text-sm font-mono font-medium">
+                            +${rec.revenueImpact.toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-center">
+                          {canUndo ? (
+                            <button
+                              onClick={() => undoRecommendation(recKey, rec)}
+                              className="px-3 py-1 text-xs font-medium rounded transition-colors bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white"
+                            >
+                              {undoLabel}
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-800 text-gray-400">
+                              Locked
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </>
+              )}
             </tbody>
           </table>
         </div>
@@ -528,7 +637,7 @@ export default function SimulatorPage() {
       {simResult && (() => {
         const pendingRecs = simResult.recommendedMoves.filter((rec) => {
           const recKey = `${rec.targetStandId}-${rec.window}`;
-          return !appliedMoves.has(recKey);
+          return !appliedMoves.has(recKey) && !deployingKeys.has(recKey);
         });
         return pendingRecs.length > 0 ? (
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
@@ -543,7 +652,7 @@ export default function SimulatorPage() {
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm">
-                        Deploy portable station near{" "}
+                        Deploy portable <span className="font-semibold text-amber-400">{rec.targetCategory}</span> station near{" "}
                         <span className="font-semibold text-blue-400">
                           {rec.targetStandName}
                         </span>{" "}
@@ -558,7 +667,7 @@ export default function SimulatorPage() {
                       <p className="text-xs text-gray-500 mt-1">{rec.reason}</p>
                     </div>
                     <button
-                      onClick={() => applyRecommendation(rec, recKey)}
+                      onClick={() => startDeploy(rec, recKey)}
                       disabled={atStaffCap}
                       className={`shrink-0 px-4 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${
                         atStaffCap
@@ -571,6 +680,30 @@ export default function SimulatorPage() {
                   </div>
                 );
               })}
+              {/* Deploying countdown items */}
+              {Array.from(deployingKeys.entries()).map(([recKey, { rec, countdown }]) => (
+                <div
+                  key={`deploying-${recKey}`}
+                  className="flex items-center justify-between gap-4 py-3 px-4 bg-green-950/30 border border-green-900/50 rounded-lg"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm">
+                      Deploying portable <span className="font-semibold text-amber-400">{rec.targetCategory}</span> station near{" "}
+                      <span className="font-semibold text-blue-400">{rec.targetStandName}</span>{" "}
+                      <span className="text-gray-400">({rec.targetLocation})</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-400 text-sm font-semibold">Deployed ({countdown}s)</span>
+                    <button
+                      onClick={() => cancelDeploy(recKey)}
+                      className="shrink-0 px-3 py-1.5 text-xs font-medium rounded transition-colors bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ) : simResult.recommendedMoves.length === 0 ? (
@@ -583,47 +716,6 @@ export default function SimulatorPage() {
           </div>
         ) : null;
       })()}
-
-      {/* Deployed Stations */}
-      {appliedMoves.size > 0 && (
-        <div className="bg-gray-900 border border-green-800 rounded-lg p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="w-2 h-2 rounded-full bg-green-400" />
-            <h2 className="text-lg font-semibold text-white">Deployed Stations</h2>
-            <span className="text-xs text-gray-400">({appliedMoves.size} station{appliedMoves.size !== 1 ? "s" : ""})</span>
-          </div>
-          <div className="space-y-3">
-            {Array.from(appliedMoves.entries()).map(([recKey, rec]) => (
-              <div
-                key={recKey}
-                className="flex items-center justify-between gap-4 py-3 px-4 bg-green-950/30 border border-green-900/50 rounded-lg"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm">
-                    Portable station near{" "}
-                    <span className="font-semibold text-blue-400">
-                      {rec.targetStandName}
-                    </span>{" "}
-                    <span className="text-gray-400">({rec.targetLocation})</span>{" "}
-                    during{" "}
-                    <span className="font-mono text-yellow-400">{rec.window}</span>
-                    {" "}&mdash;{" "}recovers{" "}
-                    <span className="font-semibold text-green-400">
-                      ${rec.revenueImpact.toLocaleString()}
-                    </span>
-                  </p>
-                </div>
-                <button
-                  onClick={() => undoRecommendation(recKey, rec)}
-                  className="shrink-0 px-4 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white focus:ring-gray-500"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* AI Insights */}
       <AIInsights gameId={selectedGameId} />

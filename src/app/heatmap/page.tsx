@@ -87,7 +87,7 @@ export default function HeatmapPage() {
               {moves.map((rec, i) => (
                 <div key={i} className="flex items-center justify-between gap-4">
                   <span className="text-sm text-gray-300">
-                    Deploy portable station near{" "}
+                    Deploy portable <span className="text-amber-400 font-semibold">{rec.targetCategory}</span> station near{" "}
                     <span className="text-white font-semibold">{rec.targetStandName}</span>{" "}
                     <span className="text-gray-400">({rec.targetLocation})</span> at{" "}
                     <span className="text-white font-semibold">{rec.window}</span> &mdash; recovers{" "}
