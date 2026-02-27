@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Active BRB Mode</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        // Royals Palette
+                        "royal-navy": "#00205B", // Deep Navy Blue base
+                        "royal-blue": "#003E7E", // Lighter Royal Blue for pulses
+                        "royal-silver": "#C4CED4", // Silver Grey
+                        "royal-red": "#C8102E", // Red accent
+                        "primary": "#003E7E", // Mapping to Royal Blue
+                        "background-light": "#f5f6f8",
+                        "background-dark": "#0B1120", // Slightly darker navy background
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display min-h-screen flex flex-col items-center justify-center overflow-hidden relative">
+<div class="absolute inset-0 pointer-events-none overflow-hidden">
+<div class="absolute top-[-10%] left-[-10%] w-[50%] h-[40%] bg-royal-blue/20 blur-[120px] rounded-full mix-blend-screen"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[60%] h-[50%] bg-royal-navy/30 blur-[100px] rounded-full mix-blend-screen"></div>
+</div>
+<div class="relative w-full max-w-md h-full min-h-screen flex flex-col z-10">
+<div class="flex items-center p-6 justify-between shrink-0">
+<button class="text-slate-900 dark:text-slate-100 flex items-center justify-center size-10 rounded-full bg-slate-200/20 dark:bg-slate-800/50 backdrop-blur hover:bg-slate-200/40 dark:hover:bg-slate-700/50 transition-colors">
+<span class="material-symbols-outlined text-2xl">close</span>
+</button>
+<h2 class="text-slate-900 dark:text-slate-100 text-lg font-bold tracking-tight uppercase">BRB Mode</h2>
+<div class="size-10"></div> 
+</div>
+<div class="flex-1 flex flex-col items-center justify-center relative my-8">
+<div class="relative flex items-center justify-center">
+<div class="absolute size-[320px] border border-royal-silver/10 rounded-full"></div>
+<div class="absolute size-[240px] border border-royal-blue/30 rounded-full"></div>
+<div class="absolute size-[160px] border border-royal-blue/50 rounded-full shadow-[0_0_15px_rgba(196,206,212,0.2)]"></div>
+<div class="relative size-20 bg-royal-blue/90 rounded-full shadow-[0_0_40px_rgba(0,62,126,0.6)] flex items-center justify-center z-20 ring-4 ring-royal-silver/10">
+<span class="material-symbols-outlined text-white text-4xl">sensors</span>
+</div>
+<div class="absolute w-[320px] h-[320px] rounded-full bg-[conic-gradient(from_0deg,transparent_0deg,transparent_90deg,rgba(0,62,126,0.2)_180deg)] opacity-50 z-10"></div>
+<div class="absolute top-10 right-20 size-2 bg-royal-silver rounded-full shadow-[0_0_8px_#C4CED4]"></div>
+<div class="absolute bottom-20 left-16 size-1.5 bg-royal-red/80 rounded-full shadow-[0_0_6px_#C8102E]"></div>
+</div>
+<div class="mt-12 text-center px-8 z-20 relative">
+<h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight">You're away.</h1>
+<p class="text-lg text-royal-silver/80 font-medium">We're watching the game for you.</p>
+</div>
+</div>
+<div class="mt-auto flex flex-col w-full pb-8 pt-4 px-6 space-y-6">
+<div class="w-full bg-slate-200/50 dark:bg-slate-800/40 backdrop-blur-md border border-slate-300/50 dark:border-slate-700/50 rounded-xl p-4 flex items-center gap-3">
+<div class="flex flex-col items-center justify-center shrink-0">
+<div class="size-2 rounded-full bg-royal-red shadow-[0_0_8px_rgba(200,16,46,0.6)] mb-0.5"></div>
+<div class="w-0.5 h-3 bg-slate-300 dark:bg-slate-700 rounded-full"></div>
+</div>
+<div class="flex-1">
+<p class="text-xs font-semibold text-slate-500 dark:text-royal-silver/70 uppercase tracking-wider mb-0.5">Live Feed</p>
+<p class="text-sm font-medium text-slate-800 dark:text-slate-200">
+<span class="text-royal-red font-bold">12:05</span> - <span class="text-royal-red font-bold">Hype spike detected!</span> Generating clip...
+                    </p>
+</div>
+<span class="material-symbols-outlined text-royal-silver/80">auto_videocam</span>
+</div>
+<button class="group relative w-full h-16 bg-royal-navy hover:bg-royal-blue active:scale-[0.98] transition-all duration-200 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(0,32,91,0.5)] border-2 border-royal-silver/30 overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-r from-transparent via-royal-silver/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+<span class="material-symbols-outlined text-white mr-2 text-2xl group-hover:rotate-12 transition-transform">airline_seat_recline_normal</span>
+<span class="text-white text-lg font-bold tracking-wide uppercase">I'm Back in My Seat</span>
+</button>
+<div class="h-2 w-full"></div>
+</div>
+</div>
+</body></html>
