@@ -2,6 +2,7 @@
 
 import { useGameContext } from "@/lib/game-context";
 import KPICard from "@/components/shared/KPICard";
+import AIInsights from "@/components/shared/AIInsights";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { SimulationResponse } from "@/lib/types";
 
@@ -13,6 +14,8 @@ export default function SimulatorPage() {
   const [simResult, setSimResult] = useState<SimulationResponse | null>(null);
   const [simLoading, setSimLoading] = useState(false);
   const [simError, setSimError] = useState<string | null>(null);
+  const [simTimestamp, setSimTimestamp] = useState<string | null>(null);
+  const [simDurationMs, setSimDurationMs] = useState<number | null>(null);
   const initializedGameId = useRef<string | null>(null);
 
   // Initialize configs from forecast when it loads or game changes
@@ -38,6 +41,7 @@ export default function SimulatorPage() {
     const timer = setTimeout(() => {
       setSimLoading(true);
       setSimError(null);
+      const start = performance.now();
       fetch(`/api/simulate/${selectedGameId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,7 +55,10 @@ export default function SimulatorPage() {
           return r.json();
         })
         .then((data: SimulationResponse) => {
+          const duration = performance.now() - start;
           setSimResult(data);
+          setSimDurationMs(parseFloat(duration.toFixed(2)));
+          setSimTimestamp(new Date().toLocaleTimeString("en-US", { hour12: false }));
           setSimLoading(false);
         })
         .catch((err) => {
@@ -138,12 +145,24 @@ export default function SimulatorPage() {
             {forecast.game.opponent} &mdash; {forecast.game.date} &middot; {forecast.game.venue}
           </p>
         </div>
-        {simLoading && (
-          <div className="flex items-center gap-2 text-sm text-blue-400">
-            <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            Recalculating...
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {simTimestamp && !simLoading && (
+            <span className="text-xs text-gray-400 font-mono">
+              Last recalculated: {simTimestamp}
+            </span>
+          )}
+          {simDurationMs !== null && !simLoading && (
+            <span className="bg-gray-800 text-green-400 text-xs font-mono px-2 py-1 rounded">
+              {simDurationMs.toFixed(2)}ms
+            </span>
+          )}
+          {simLoading && (
+            <div className="flex items-center gap-2 text-sm text-blue-400">
+              <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              Recalculating...
+            </div>
+          )}
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -432,6 +451,9 @@ export default function SimulatorPage() {
           </p>
         </div>
       )}
+
+      {/* AI Insights */}
+      <AIInsights gameId={selectedGameId} />
     </div>
   );
 }

@@ -11,6 +11,8 @@ interface GameContextValue {
   setMode: (mode: "forecast" | "live") => void;
   forecast: ForecastResponse | null;
   isLoading: boolean;
+  fetchDurationMs: number | null;
+  lastUpdatedAt: string | null;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -21,6 +23,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<"forecast" | "live">("forecast");
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchDurationMs, setFetchDurationMs] = useState<number | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
 
   // Load games on mount
   useEffect(() => {
@@ -38,17 +42,22 @@ export function GameProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!selectedGameId) return;
     setIsLoading(true);
+    setFetchDurationMs(null);
+    const start = performance.now();
     fetch(`/api/forecast/${selectedGameId}`)
       .then((r) => r.json())
       .then((data) => {
+        const duration = performance.now() - start;
         setForecast(data);
+        setFetchDurationMs(parseFloat(duration.toFixed(2)));
+        setLastUpdatedAt(new Date().toLocaleTimeString("en-US", { hour12: false }));
         setIsLoading(false);
       });
   }, [selectedGameId]);
 
   return (
     <GameContext.Provider
-      value={{ games, selectedGameId, setSelectedGameId, mode, setMode, forecast, isLoading }}
+      value={{ games, selectedGameId, setSelectedGameId, mode, setMode, forecast, isLoading, fetchDurationMs, lastUpdatedAt }}
     >
       {children}
     </GameContext.Provider>

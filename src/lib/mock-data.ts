@@ -1,151 +1,53 @@
 import { Game, Stand, StandForecast, ForecastResponse, GameEvent, SimulationRequest, SimulationResponse, LiveStatusResponse, Alert } from "./types";
-import { generateTimeBuckets, ALERT_THRESHOLD_PERCENT } from "./constants";
+import { ALERT_THRESHOLD_PERCENT } from "./constants";
 import { computeStandForecast, generateRecommendedMoves } from "./calculations";
 
-// --- Games ---
-export const MOCK_GAMES: Game[] = [
-  {
-    id: "game-1",
-    opponent: "Calgary Flames",
-    date: "2025-01-15",
-    venue: "Rogers Arena",
-    expectedAttendance: 18500,
-    puckDropTime: "19:00",
-    status: "completed",
-  },
-  {
-    id: "game-2",
-    opponent: "Edmonton Oilers",
-    date: "2025-01-22",
-    venue: "Rogers Arena",
-    expectedAttendance: 18900,
-    puckDropTime: "19:00",
-    status: "completed",
-  },
-  {
-    id: "game-3",
-    opponent: "Toronto Maple Leafs",
-    date: "2025-02-05",
-    venue: "Rogers Arena",
-    expectedAttendance: 18900,
-    puckDropTime: "19:30",
-    status: "upcoming",
-  },
-  {
-    id: "game-4",
-    opponent: "Montreal Canadiens",
-    date: "2025-02-12",
-    venue: "Rogers Arena",
-    expectedAttendance: 18200,
-    puckDropTime: "19:00",
-    status: "upcoming",
-  },
-];
+// --- Real data from Save-On-Foods Memorial Centre ---
+import gamesData from "./data/games.json";
+import standsData from "./data/stands.json";
+import demandCurvesData from "./data/demand-curves.json";
 
-// --- Stands ---
-export const MOCK_STANDS: Stand[] = [
-  { id: "s1", name: "Section 100 Beer", category: "beer", location: "Lower Concourse", staffCount: 4, avgTransactionValue: 14.5, serviceRatePerStaff: 6 },
-  { id: "s2", name: "Section 200 Beer", category: "beer", location: "Upper Concourse", staffCount: 3, avgTransactionValue: 14.5, serviceRatePerStaff: 6 },
-  { id: "s3", name: "Main Concourse Pizza", category: "food", location: "Main Concourse", staffCount: 5, avgTransactionValue: 12.0, serviceRatePerStaff: 5 },
-  { id: "s4", name: "Hot Dog Stand A", category: "food", location: "Lower Concourse", staffCount: 3, avgTransactionValue: 8.5, serviceRatePerStaff: 7 },
-  { id: "s5", name: "Hot Dog Stand B", category: "food", location: "Upper Concourse", staffCount: 2, avgTransactionValue: 8.5, serviceRatePerStaff: 7 },
-  { id: "s6", name: "Sushi Bar", category: "premium", location: "Club Level", staffCount: 3, avgTransactionValue: 22.0, serviceRatePerStaff: 4 },
-  { id: "s7", name: "Nacho Stand", category: "food", location: "Lower Concourse", staffCount: 3, avgTransactionValue: 11.0, serviceRatePerStaff: 6 },
-  { id: "s8", name: "Team Store", category: "merchandise", location: "Main Concourse", staffCount: 4, avgTransactionValue: 45.0, serviceRatePerStaff: 3 },
-  { id: "s9", name: "Craft Beer Bar", category: "beer", location: "Club Level", staffCount: 3, avgTransactionValue: 16.0, serviceRatePerStaff: 5 },
-  { id: "s10", name: "Coffee & Dessert", category: "food", location: "Upper Concourse", staffCount: 2, avgTransactionValue: 9.0, serviceRatePerStaff: 6 },
-];
+export const MOCK_GAMES: Game[] = gamesData as Game[];
+export const MOCK_STANDS: Stand[] = standsData as Stand[];
 
-// --- Demand Curve Generation ---
-// Hockey game demand pattern (relative multiplier per bucket position)
-function hockeyDemandCurve(bucketIndex: number, totalBuckets: number, puckDropIndex: number): number {
-  const relativePos = bucketIndex - puckDropIndex;
-
-  // Pre-game ramp: gates open to puck drop
-  if (relativePos < -3) return 0.2 + (bucketIndex / puckDropIndex) * 0.3;
-  if (relativePos >= -3 && relativePos < 0) return 0.6 + (3 + relativePos) * 0.15; // ramping up
-
-  // Puck drop: dip
-  if (relativePos === 0) return 0.3;
-
-  // 1st period (buckets 1-5 after puck drop)
-  if (relativePos >= 1 && relativePos <= 5) return 0.25 + relativePos * 0.02;
-
-  // 1st intermission (buckets 6-7): biggest spike
-  if (relativePos === 6 || relativePos === 7) return 1.0;
-
-  // 2nd period (buckets 8-13)
-  if (relativePos >= 8 && relativePos <= 13) return 0.35;
-
-  // 2nd intermission (buckets 14-15)
-  if (relativePos === 14 || relativePos === 15) return 0.85;
-
-  // 3rd period (buckets 16-21): tapering
-  if (relativePos >= 16 && relativePos <= 21) return 0.25 - (relativePos - 16) * 0.02;
-
-  // Post game
-  if (relativePos > 21) return 0.15 - Math.min(0.12, (relativePos - 21) * 0.03);
-
-  return 0.2;
-}
-
-// Per-stand popularity weights (how busy relative to base)
-const STAND_POPULARITY: Record<string, number> = {
-  s1: 1.3, // Section 100 Beer: very popular
-  s2: 0.9,
-  s3: 1.2, // Pizza: popular
-  s4: 1.0,
-  s5: 0.7,
-  s6: 0.8, // Sushi: smaller but premium
-  s7: 0.9,
-  s8: 0.6, // Team Store: lower volume
-  s9: 1.1, // Craft Beer: popular
-  s10: 0.5,
-};
-
-function generateDemandForStand(
-  stand: Stand,
-  timeBuckets: string[],
-  puckDropIndex: number,
-  attendanceScale: number
-): number[] {
-  const baseDemand = stand.staffCount * stand.serviceRatePerStaff * 1.4; // demand exceeds capacity during peaks
-  const popularity = STAND_POPULARITY[stand.id] || 1.0;
-
-  return timeBuckets.map((_, i) => {
-    const curve = hockeyDemandCurve(i, timeBuckets.length, puckDropIndex);
-    const noise = 0.9 + Math.random() * 0.2; // ±10% noise
-    return Math.round(baseDemand * curve * popularity * attendanceScale * noise);
-  });
-}
+const demandCurves = demandCurvesData as Record<string, Record<string, Record<string, number>>>;
 
 // --- Forecast Generation ---
 export function generateForecast(gameId: string): ForecastResponse {
   const game = MOCK_GAMES.find((g) => g.id === gameId) ?? MOCK_GAMES[0];
-  const timeBuckets = generateTimeBuckets(17, 30, 22, 0);
+  const gameDemand = demandCurves[gameId] || demandCurves["game-1"] || {};
 
-  // Find puck drop bucket index
+  // Collect all time buckets from demand data, sorted chronologically
+  const allBuckets = new Set<string>();
+  for (const standId of Object.keys(gameDemand)) {
+    for (const bucket of Object.keys(gameDemand[standId])) {
+      allBuckets.add(bucket);
+    }
+  }
+  const timeBuckets = Array.from(allBuckets).sort();
+
+  // Find puck drop bucket (closest to game puckDropTime)
   const puckDropIndex = timeBuckets.indexOf(game.puckDropTime);
-  const attendanceScale = game.expectedAttendance / 18000;
+  const effectivePuckDrop = puckDropIndex >= 0 ? puckDropIndex : Math.floor(timeBuckets.length * 0.3);
 
   // Game events
   const events: GameEvent[] = [
-    { bucket: game.puckDropTime, label: "Puck Drop", type: "puck_drop" },
+    { bucket: timeBuckets[effectivePuckDrop] || game.puckDropTime, label: "Puck Drop", type: "puck_drop" },
   ];
-  if (puckDropIndex + 6 < timeBuckets.length) {
-    events.push({ bucket: timeBuckets[puckDropIndex + 6], label: "1st Intermission", type: "intermission" });
+  if (effectivePuckDrop + 6 < timeBuckets.length) {
+    events.push({ bucket: timeBuckets[effectivePuckDrop + 6], label: "1st Intermission", type: "intermission" });
   }
-  if (puckDropIndex + 14 < timeBuckets.length) {
-    events.push({ bucket: timeBuckets[puckDropIndex + 14], label: "2nd Intermission", type: "intermission" });
+  if (effectivePuckDrop + 14 < timeBuckets.length) {
+    events.push({ bucket: timeBuckets[effectivePuckDrop + 14], label: "2nd Intermission", type: "intermission" });
   }
-  if (puckDropIndex + 22 < timeBuckets.length) {
-    events.push({ bucket: timeBuckets[puckDropIndex + 22], label: "Game End", type: "game_end" });
+  if (effectivePuckDrop + 22 < timeBuckets.length) {
+    events.push({ bucket: timeBuckets[effectivePuckDrop + 22], label: "Game End", type: "game_end" });
   }
 
-  // Generate forecasts per stand
-  // Seed random for consistency per game
+  // Generate forecasts per stand using real demand data
   const stands: StandForecast[] = MOCK_STANDS.map((stand) => {
-    const demand = generateDemandForStand(stand, timeBuckets, puckDropIndex, attendanceScale);
+    const standDemand = gameDemand[stand.id] || {};
+    const demand = timeBuckets.map((bucket) => standDemand[bucket] || 0);
     return computeStandForecast(stand, demand, timeBuckets);
   });
 
@@ -184,9 +86,10 @@ export function generateForecast(gameId: string): ForecastResponse {
       recoveryPotential,
     },
     assumptions: [
-      `Service rate: varies by stand (${MOCK_STANDS[0].serviceRatePerStaff}-${MOCK_STANDS[MOCK_STANDS.length - 1].serviceRatePerStaff} tx/staff/10min)`,
-      `Attendance: ${game.expectedAttendance.toLocaleString()}`,
-      "Demand model: historical hockey game pattern with noise",
+      `Real transaction data from ${game.date} at Save-On-Foods Memorial Centre`,
+      `Service rate: ${MOCK_STANDS[0].serviceRatePerStaff} tx/staff/10min`,
+      `Scanned attendance: ${game.expectedAttendance.toLocaleString()}`,
+      "Demand derived from historical POS transaction timestamps",
       "Revenue at risk = lost transactions × avg transaction value",
     ],
   };
