@@ -50,7 +50,7 @@ export interface ForecastResponse {
   summary: {
     totalRevenueAtRisk: number;
     topBottleneckStands: StandForecast[];
-    topStressWindows: { bucket: TimeBucket; totalOverload: number }[];
+    topStressWindows: { bucket: TimeBucket; totalOverload: number; revenueAtRisk: number; overloadedStandCount: number }[];
     recoveryPotential: number;
   };
   assumptions: string[];

@@ -86,11 +86,19 @@ export function generateForecast(gameId: string): ForecastResponse {
 
   // Stress windows: aggregate overload across all stands per bucket
   const stressPerBucket = timeBuckets.map((bucket, i) => {
-    const totalOverload = stands.reduce((sum, sf) => {
+    let totalOverload = 0;
+    let revenueAtRisk = 0;
+    let overloadedStandCount = 0;
+    for (const sf of stands) {
       const b = sf.buckets[i];
-      return sum + Math.max(0, b.overloadRatio - 1);
-    }, 0);
-    return { bucket, totalOverload };
+      const excess = b.overloadRatio - 1;
+      if (excess > 0) {
+        totalOverload += excess;
+        overloadedStandCount++;
+      }
+      revenueAtRisk += b.revenueAtRisk;
+    }
+    return { bucket, totalOverload, revenueAtRisk: Math.round(revenueAtRisk), overloadedStandCount };
   });
   const topStressWindows = [...stressPerBucket]
     .sort((a, b) => b.totalOverload - a.totalOverload)

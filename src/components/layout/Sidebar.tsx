@@ -14,7 +14,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-56 bg-gray-900 border-r border-gray-800 flex flex-col min-h-screen">
+    <aside className="w-56 flex-shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col min-h-screen">
       <div className="p-4 border-b border-gray-800">
         <h1 className="text-lg font-bold text-white">Game Day Monitor</h1>
         <p className="text-xs text-gray-500 mt-1">Revenue Risk Dashboard</p>

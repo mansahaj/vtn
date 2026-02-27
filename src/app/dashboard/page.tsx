@@ -5,7 +5,6 @@ import KPICard from "@/components/shared/KPICard";
 import AIInsights from "@/components/shared/AIInsights";
 
 function OverloadBadge({ ratio }: { ratio: number }) {
-  const pct = (ratio * 100).toFixed(0);
   let color = "bg-green-900 text-green-300";
   if (ratio > 1.5) color = "bg-red-900 text-red-300";
   else if (ratio > 1.2) color = "bg-orange-900 text-orange-300";
@@ -13,7 +12,7 @@ function OverloadBadge({ ratio }: { ratio: number }) {
 
   return (
     <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${color}`}>
-      {pct}%
+      {ratio.toFixed(1)}x capacity
     </span>
   );
 }
@@ -149,11 +148,16 @@ export default function DashboardPage() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className="text-red-400 font-semibold text-sm">
-                    ${sf.totalRevenueAtRisk.toLocaleString()}
+                <div className="text-right flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-3">
+                    <span className="text-red-400 font-semibold text-sm">
+                      ${sf.totalRevenueAtRisk.toLocaleString()}
+                    </span>
+                    <OverloadBadge ratio={sf.peakOverloadRatio} />
+                  </div>
+                  <span className="text-[10px] text-gray-500">
+                    Overloaded in {sf.buckets.filter(b => b.overloadRatio > 1).length} of {sf.buckets.length} windows
                   </span>
-                  <OverloadBadge ratio={sf.peakOverloadRatio} />
                 </div>
               </div>
             ))}
@@ -182,9 +186,9 @@ export default function DashboardPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-orange-400 font-semibold text-sm">
-                      {sw.totalOverload.toFixed(2)} overload
+                      ${sw.revenueAtRisk.toLocaleString()} at risk
                     </p>
-                    <p className="text-xs text-gray-500">aggregate ratio above 1.0</p>
+                    <p className="text-xs text-gray-500">{sw.overloadedStandCount} stand{sw.overloadedStandCount !== 1 ? "s" : ""} overloaded</p>
                   </div>
                 </div>
               );
