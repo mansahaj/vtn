@@ -270,7 +270,7 @@ export default function DemandPage() {
       </div>
 
       {/* Chart */}
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
+      <div className={`bg-gray-900 border border-gray-700 rounded-lg p-5 border-l-2 ${isLive ? "border-l-green-500" : "border-l-blue-500"}`}>
         <ResponsiveContainer width="100%" height={400}>
           <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />

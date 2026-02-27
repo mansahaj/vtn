@@ -8,6 +8,7 @@ interface KPICardProps {
   sublabel?: string;
   tooltip?: string;
   variant?: "default" | "danger" | "success" | "warning";
+  dataType?: "predictive" | "live";
 }
 
 const VARIANT_STYLES = {
@@ -17,11 +18,11 @@ const VARIANT_STYLES = {
   warning: "border-yellow-700 bg-yellow-950/30",
 };
 
-export default function KPICard({ label, value, sublabel, tooltip, variant = "default" }: KPICardProps) {
+export default function KPICard({ label, value, sublabel, tooltip, variant = "default", dataType }: KPICardProps) {
   const [showTooltip, setShowTooltip] = useState(false);
 
   return (
-    <div className={`bg-gray-900 border rounded-lg p-4 ${VARIANT_STYLES[variant]}`}>
+    <div className={`bg-gray-900 border rounded-lg p-4 ${VARIANT_STYLES[variant]} ${dataType === "predictive" ? "border-l-2 border-l-blue-500" : dataType === "live" ? "border-l-2 border-l-green-500" : ""}`}>
       <div className="flex items-center gap-1.5">
         <p className="text-xs text-gray-400 uppercase tracking-wide">{label}</p>
         {tooltip && (
@@ -44,6 +45,11 @@ export default function KPICard({ label, value, sublabel, tooltip, variant = "de
       </div>
       <p className="text-2xl font-bold text-white mt-1">{typeof value === "number" ? `$${value.toLocaleString()}` : value}</p>
       {sublabel && <p className="text-xs text-gray-500 mt-1">{sublabel}</p>}
+      {dataType && (
+        <span className={`inline-block text-[10px] font-medium mt-1.5 ${dataType === "predictive" ? "text-blue-400" : "text-green-400"}`}>
+          {dataType === "predictive" ? "Predicted" : "Live"}
+        </span>
+      )}
     </div>
   );
 }

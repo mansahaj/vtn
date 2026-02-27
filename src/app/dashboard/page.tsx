@@ -95,6 +95,7 @@ export default function DashboardPage() {
           sublabel="Across all stands"
           variant="danger"
           tooltip="Estimated dollar value of transactions lost when predicted demand exceeds stand service capacity across the entire game"
+          dataType={forecast.game.status !== "completed" ? "predictive" : undefined}
         />
         <KPICard
           label="Recovery Potential"
@@ -102,6 +103,7 @@ export default function DashboardPage() {
           sublabel="With optimal staff reallocation"
           variant="success"
           tooltip="How much revenue could be recovered by optimally redistributing staff from underloaded to overloaded stands"
+          dataType={forecast.game.status !== "completed" ? "predictive" : undefined}
         />
         <KPICard
           label="Top Bottleneck"
@@ -113,6 +115,7 @@ export default function DashboardPage() {
           }
           variant="warning"
           tooltip="The stand with the highest total revenue at risk across all time buckets during the game"
+          dataType={forecast.game.status !== "completed" ? "predictive" : undefined}
         />
         <KPICard
           label="Stands Monitored"
@@ -135,7 +138,7 @@ export default function DashboardPage() {
       {/* Two-column layout for bottleneck stands and stress windows */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top 3 Bottleneck Stands */}
-        <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
+        <div className="bg-gray-900 border border-gray-700 border-l-2 border-l-blue-500 rounded-lg p-5">
           <h2 className="text-lg font-semibold text-white mb-4">
             Top 3 {forecast.game.status === "completed" ? "" : "Predicted "}Bottlenecks
           </h2>
@@ -171,7 +174,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Top 3 Stress Windows */}
-        <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
+        <div className="bg-gray-900 border border-gray-700 border-l-2 border-l-blue-500 rounded-lg p-5">
           <h2 className="text-lg font-semibold text-white mb-4">
             Top 3 {forecast.game.status === "completed" ? "" : "Predicted "}Stress Windows
           </h2>

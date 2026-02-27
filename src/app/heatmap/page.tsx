@@ -109,7 +109,7 @@ export default function HeatmapPage() {
       {/* Legend */}
       <div className="flex items-center gap-4 flex-wrap">
         <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-          Capacity Utilization
+          {forecast.game.status !== "completed" ? "Predicted " : ""}Capacity Utilization
         </span>
         <div className="flex items-center gap-1">
           {LEGEND_STEPS.map((step) => (

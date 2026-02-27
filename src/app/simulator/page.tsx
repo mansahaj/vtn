@@ -288,7 +288,7 @@ export default function SimulatorPage() {
       )}
 
       {/* Staff Editor Table */}
-      <div className="bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+      <div className="bg-gray-900 border border-gray-700 border-l-2 border-l-blue-500 rounded-lg overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-700 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Staff Configuration</h2>
           <button
