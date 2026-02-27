@@ -1,3 +1,10 @@
+## Git & Branch Rules
+- **NEVER commit or push directly to `main`** — always work on a feature branch
+- Create branches from `main` with descriptive names (e.g., `feat/auth`, `fix/api-error`)
+- Use PRs to merge into `main` — Greptile will auto-review
+- Pull latest `main` and rebase before opening a PR to avoid conflicts
+- Keep commits small and focused — one logical change per commit
+
 ## Workflow Orchestration
 
 ### 1. Plan Mode Default
