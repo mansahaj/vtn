@@ -6,6 +6,27 @@ import AIInsights from "@/components/shared/AIInsights";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { SimulationResponse } from "@/lib/types";
 
+function HeaderTooltip({ text }: { text: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <span className="relative inline-block ml-1 align-middle">
+      <span
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-gray-500 text-gray-500 text-[9px] cursor-help leading-none hover:border-gray-300 hover:text-gray-300"
+      >
+        ?
+      </span>
+      {show && (
+        <span className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 px-3 py-2 text-xs text-gray-200 bg-gray-800 border border-gray-600 rounded-lg shadow-xl normal-case tracking-normal font-normal">
+          {text}
+          <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-gray-600" />
+        </span>
+      )}
+    </span>
+  );
+}
+
 export default function SimulatorPage() {
   const { forecast, isLoading, selectedGameId } = useGameContext();
 
@@ -16,7 +37,9 @@ export default function SimulatorPage() {
   const [simError, setSimError] = useState<string | null>(null);
   const [simTimestamp, setSimTimestamp] = useState<string | null>(null);
   const [simDurationMs, setSimDurationMs] = useState<number | null>(null);
+  const [appliedMoves, setAppliedMoves] = useState<Set<string>>(new Set());
   const initializedGameId = useRef<string | null>(null);
+  const prevSimResultRef = useRef<SimulationResponse | null>(null);
 
   // Initialize configs from forecast when it loads or game changes
   useEffect(() => {
@@ -31,8 +54,17 @@ export default function SimulatorPage() {
     setServiceRateConfig(rates);
     setSimResult(null);
     setSimError(null);
+    setAppliedMoves(new Set());
     initializedGameId.current = selectedGameId;
   }, [forecast, selectedGameId]);
+
+  // Reset appliedMoves when simResult changes (new recommendations)
+  useEffect(() => {
+    if (simResult && simResult !== prevSimResultRef.current) {
+      setAppliedMoves(new Set());
+      prevSimResultRef.current = simResult;
+    }
+  }, [simResult]);
 
   // Debounced simulation call
   useEffect(() => {
@@ -79,7 +111,8 @@ export default function SimulatorPage() {
   }, []);
 
   const applyRecommendedMove = useCallback(
-    (fromStandId: string, toStandId: string, count: number) => {
+    (fromStandId: string, toStandId: string, count: number, moveKey: string) => {
+      setAppliedMoves((prev) => new Set(prev).add(moveKey));
       setStaffConfig((prev) => ({
         ...prev,
         [fromStandId]: Math.max(0, (prev[fromStandId] ?? 0) - count),
@@ -249,12 +282,34 @@ export default function SimulatorPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-800/50 text-gray-400 text-xs uppercase tracking-wider">
-                <th className="text-left px-5 py-3 font-medium">Stand Name</th>
-                <th className="text-left px-5 py-3 font-medium">Category</th>
-                <th className="text-center px-5 py-3 font-medium">Current Staff</th>
-                <th className="text-center px-5 py-3 font-medium">New Staff</th>
-                <th className="text-center px-5 py-3 font-medium">Service Rate</th>
-                <th className="text-center px-5 py-3 font-medium">Status</th>
+                <th className="text-left px-5 py-3 font-medium">
+                  Stand Name
+                  <HeaderTooltip text="Concession stand location within Save-On-Foods Memorial Centre" />
+                </th>
+                <th className="text-left px-5 py-3 font-medium">
+                  Category
+                  <HeaderTooltip text="Type of service: food, beer, or premium" />
+                </th>
+                <th className="text-center px-5 py-3 font-medium">
+                  Current Staff
+                  <HeaderTooltip text="Baseline staff count assigned to this stand before any changes" />
+                </th>
+                <th className="text-center px-5 py-3 font-medium">
+                  New Staff
+                  <HeaderTooltip text="Adjusted staff count — use +/- buttons or type a number to simulate redeployment" />
+                </th>
+                <th className="text-center px-5 py-3 font-medium">
+                  Service Rate
+                  <HeaderTooltip text="Transactions one staff member can process per 10-minute window (tx/staff/10min)" />
+                </th>
+                <th className="text-center px-5 py-3 font-medium">
+                  $ Saved
+                  <HeaderTooltip text="Revenue recovered at this stand compared to baseline staffing" />
+                </th>
+                <th className="text-center px-5 py-3 font-medium">
+                  Status
+                  <HeaderTooltip text="Peak demand-to-capacity ratio across all time buckets. Below 100% means demand is within capacity" />
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800">
@@ -269,6 +324,34 @@ export default function SimulatorPage() {
                 // Find post-sim stand data for this stand
                 const simStand = simResult?.stands.find((s) => s.stand.id === standId);
                 const peakRatio = simStand?.peakOverloadRatio ?? sf.peakOverloadRatio;
+                const baselineRatio = sf.peakOverloadRatio;
+
+                // Per-stand revenue delta
+                const baselineRisk = sf.totalRevenueAtRisk;
+                const simRisk = simStand?.totalRevenueAtRisk ?? baselineRisk;
+                const revenueDelta = baselineRisk - simRisk;
+
+                // Multi-tier status
+                let statusLabel: string;
+                let statusColor: string;
+                let dotColor: string;
+                if (peakRatio > 2.0) {
+                  statusLabel = "Critical";
+                  statusColor = "bg-red-900/50 text-red-300";
+                  dotColor = "bg-red-400";
+                } else if (peakRatio > 1.2) {
+                  statusLabel = "Overloaded";
+                  statusColor = "bg-orange-900/50 text-orange-300";
+                  dotColor = "bg-orange-400";
+                } else if (peakRatio > 1.0) {
+                  statusLabel = "Near Capacity";
+                  statusColor = "bg-yellow-900/50 text-yellow-300";
+                  dotColor = "bg-yellow-400";
+                } else {
+                  statusLabel = "OK";
+                  statusColor = "bg-green-900/50 text-green-300";
+                  dotColor = "bg-green-400";
+                }
 
                 const CATEGORY_COLORS: Record<string, string> = {
                   beer: "bg-amber-900/50 text-amber-300",
@@ -364,20 +447,37 @@ export default function SimulatorPage() {
                       </div>
                     </td>
 
-                    {/* Status */}
+                    {/* $ Saved */}
                     <td className="px-5 py-3 text-center">
                       {simResult ? (
-                        isOverloaded ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-900/50 text-red-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                            Overloaded ({(peakRatio * 100).toFixed(0)}%)
+                        <span className={`text-sm font-mono font-medium ${
+                          revenueDelta > 0 ? "text-green-400" :
+                          revenueDelta < 0 ? "text-red-400" :
+                          "text-gray-500"
+                        }`}>
+                          {revenueDelta > 0 ? `+$${Math.round(revenueDelta).toLocaleString()}` :
+                           revenueDelta < 0 ? `-$${Math.round(Math.abs(revenueDelta)).toLocaleString()}` :
+                           "$0"}
+                        </span>
+                      ) : (
+                        <span className="text-gray-500 text-xs">--</span>
+                      )}
+                    </td>
+
+                    {/* Status — multi-tier */}
+                    <td className="px-5 py-3 text-center">
+                      {simResult ? (
+                        <div>
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusColor}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
+                            {statusLabel} ({(peakRatio * 100).toFixed(0)}%)
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-900/50 text-green-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                            OK ({(peakRatio * 100).toFixed(0)}%)
-                          </span>
-                        )
+                          {peakRatio < baselineRatio && (
+                            <p className="text-[10px] text-gray-500 mt-0.5">
+                              &darr; from {(baselineRatio * 100).toFixed(0)}%
+                            </p>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-gray-500 text-xs">--</span>
                       )}
@@ -395,48 +495,58 @@ export default function SimulatorPage() {
         <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
           <h2 className="text-lg font-semibold text-white mb-4">Recommended Moves</h2>
           <div className="space-y-3">
-            {simResult.recommendedMoves.map((move, i) => (
-              <div
-                key={`${move.fromStandId}-${move.toStandId}-${move.window}-${i}`}
-                className="flex items-center justify-between gap-4 py-3 px-4 bg-gray-800 rounded-lg"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm">
-                    Move{" "}
-                    <span className="font-semibold text-blue-400">
-                      {move.staffCount} staff
-                    </span>{" "}
-                    from{" "}
-                    <span className="font-medium text-gray-200">
-                      {move.fromStandName}
-                    </span>{" "}
-                    to{" "}
-                    <span className="font-medium text-gray-200">
-                      {move.toStandName}
-                    </span>{" "}
-                    during{" "}
-                    <span className="font-mono text-yellow-400">{move.window}</span>
-                    {" "}&mdash;{" "}saves{" "}
-                    <span className="font-semibold text-green-400">
-                      ${move.revenueImpact.toLocaleString()}
-                    </span>
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">{move.reason}</p>
-                </div>
-                <button
-                  onClick={() =>
-                    applyRecommendedMove(
-                      move.fromStandId,
-                      move.toStandId,
-                      move.staffCount
-                    )
-                  }
-                  className="shrink-0 px-4 py-2 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+            {simResult.recommendedMoves.map((move, i) => {
+              const moveKey = `${move.fromStandId}-${move.toStandId}-${move.window}`;
+              const isApplied = appliedMoves.has(moveKey);
+              return (
+                <div
+                  key={`${moveKey}-${i}`}
+                  className="flex items-center justify-between gap-4 py-3 px-4 bg-gray-800 rounded-lg"
                 >
-                  Apply
-                </button>
-              </div>
-            ))}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm">
+                      Move{" "}
+                      <span className="font-semibold text-blue-400">
+                        {move.staffCount} staff
+                      </span>{" "}
+                      from{" "}
+                      <span className="font-medium text-gray-200">
+                        {move.fromStandName}
+                      </span>{" "}
+                      to{" "}
+                      <span className="font-medium text-gray-200">
+                        {move.toStandName}
+                      </span>{" "}
+                      during{" "}
+                      <span className="font-mono text-yellow-400">{move.window}</span>
+                      {" "}&mdash;{" "}saves{" "}
+                      <span className="font-semibold text-green-400">
+                        ${move.revenueImpact.toLocaleString()}
+                      </span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">{move.reason}</p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      applyRecommendedMove(
+                        move.fromStandId,
+                        move.toStandId,
+                        move.staffCount,
+                        moveKey
+                      )
+                    }
+                    disabled={isApplied}
+                    className={`shrink-0 px-4 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${
+                      isApplied
+                        ? "bg-green-800 text-green-200 cursor-default focus:ring-green-500"
+                        : "bg-blue-600 text-white hover:bg-blue-500 focus:ring-blue-500"
+                    }`}
+                  >
+                    {isApplied ? "Applied \u2713" : "Apply"}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
