@@ -18,9 +18,9 @@ function HeaderTooltip({ text }: { text: string }) {
         ?
       </span>
       {show && (
-        <span className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 px-3 py-2 text-xs text-gray-200 bg-gray-800 border border-gray-600 rounded-lg shadow-xl normal-case tracking-normal font-normal">
+        <span className="absolute z-50 top-full left-1/2 -translate-x-1/2 mt-2 w-52 px-3 py-2 text-xs text-gray-200 bg-gray-800 border border-gray-600 rounded-lg shadow-xl normal-case tracking-normal font-normal">
           {text}
-          <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-px border-4 border-transparent border-t-gray-600" />
+          <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-px border-4 border-transparent border-b-gray-600" />
         </span>
       )}
     </span>

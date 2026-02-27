@@ -23,7 +23,7 @@ export default function HeatmapGrid({ stands, timeBuckets, events }: HeatmapGrid
   const columnCount = timeBuckets.length;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-800">
+    <div className="overflow-x-auto overflow-y-visible rounded-lg border border-gray-800 pt-16 -mt-16">
       <div
         className="inline-grid gap-px bg-gray-800 min-w-fit"
         style={{

@@ -24,24 +24,50 @@ export function generateForecast(gameId: string): ForecastResponse {
       allBuckets.add(bucket);
     }
   }
-  const timeBuckets = Array.from(allBuckets).sort();
+  let timeBuckets = Array.from(allBuckets).sort();
 
-  // Find puck drop bucket (closest to game puckDropTime)
+  // Extend time buckets to cover full game + potential OT
+  // Hockey game: ~3h from puck drop (regulation 2h40m + potential OT 20m)
+  const puckDropTime = game.puckDropTime; // e.g. "19:05"
+  const [pdH, pdM] = puckDropTime.split(":").map(Number);
+  const puckDropMinutes = pdH * 60 + pdM;
+  const gameEndMinutes = puckDropMinutes + 200; // 3h20m covers regulation + OT
+  // Generate 10-min buckets from earliest data to game end
+  const lastDataBucket = timeBuckets[timeBuckets.length - 1];
+  if (lastDataBucket) {
+    const [lastH, lastM] = lastDataBucket.split(":").map(Number);
+    let currentMinutes = lastH * 60 + lastM + 10;
+    while (currentMinutes <= gameEndMinutes) {
+      const h = Math.floor(currentMinutes / 60);
+      const m = currentMinutes % 60;
+      const bucket = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+      if (!allBuckets.has(bucket)) {
+        allBuckets.add(bucket);
+      }
+      currentMinutes += 10;
+    }
+    timeBuckets = Array.from(allBuckets).sort();
+  }
+
+  // Find puck drop bucket
   const puckDropIndex = timeBuckets.indexOf(game.puckDropTime);
   const effectivePuckDrop = puckDropIndex >= 0 ? puckDropIndex : Math.floor(timeBuckets.length * 0.3);
 
-  // Game events
+  // Game events — realistic hockey timing
   const events: GameEvent[] = [
     { bucket: timeBuckets[effectivePuckDrop] || game.puckDropTime, label: "Puck Drop", type: "puck_drop" },
   ];
   if (effectivePuckDrop + 6 < timeBuckets.length) {
     events.push({ bucket: timeBuckets[effectivePuckDrop + 6], label: "1st Intermission", type: "intermission" });
   }
-  if (effectivePuckDrop + 14 < timeBuckets.length) {
-    events.push({ bucket: timeBuckets[effectivePuckDrop + 14], label: "2nd Intermission", type: "intermission" });
+  if (effectivePuckDrop + 12 < timeBuckets.length) {
+    events.push({ bucket: timeBuckets[effectivePuckDrop + 12], label: "2nd Intermission", type: "intermission" });
   }
-  if (effectivePuckDrop + 22 < timeBuckets.length) {
-    events.push({ bucket: timeBuckets[effectivePuckDrop + 22], label: "Game End", type: "game_end" });
+  if (effectivePuckDrop + 18 < timeBuckets.length) {
+    events.push({ bucket: timeBuckets[effectivePuckDrop + 18], label: "Game End", type: "game_end" });
+  }
+  if (effectivePuckDrop + 20 < timeBuckets.length) {
+    events.push({ bucket: timeBuckets[effectivePuckDrop + 20], label: "Potential OT", type: "period_end" });
   }
 
   // Generate forecasts per stand using real demand data
