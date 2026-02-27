@@ -4,7 +4,7 @@ import { useGameContext } from "@/lib/game-context";
 import KPICard from "@/components/shared/KPICard";
 import AIInsights from "@/components/shared/AIInsights";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { SimulationResponse, RecommendedMove } from "@/lib/types";
+import { SimulationResponse, PortableStationRecommendation } from "@/lib/types";
 import DataContextBadge from "@/components/shared/DataContextBadge";
 
 function HeaderTooltip({ text }: { text: string }) {
@@ -38,9 +38,14 @@ export default function SimulatorPage() {
   const [simError, setSimError] = useState<string | null>(null);
   const [simTimestamp, setSimTimestamp] = useState<string | null>(null);
   const [simDurationMs, setSimDurationMs] = useState<number | null>(null);
-  const [appliedMoves, setAppliedMoves] = useState<Map<string, RecommendedMove>>(new Map());
+  const [appliedMoves, setAppliedMoves] = useState<Map<string, PortableStationRecommendation>>(new Map());
   const initializedGameId = useRef<string | null>(null);
   const prevSimResultRef = useRef<SimulationResponse | null>(null);
+
+  // Staff cap: 120% of baseline
+  const originalTotalStaff = forecast
+    ? forecast.stands.reduce((sum, sf) => sum + sf.stand.staffCount, 0)
+    : 0;
 
   // Initialize configs from forecast when it loads or game changes
   useEffect(() => {
@@ -104,36 +109,39 @@ export default function SimulatorPage() {
   }, [staffConfig, serviceRateConfig, selectedGameId]);
 
   const updateStaff = useCallback((standId: string, value: number) => {
-    setStaffConfig((prev) => ({ ...prev, [standId]: Math.max(0, value) }));
-  }, []);
+    setStaffConfig((prev) => {
+      const clamped = Math.max(0, value);
+      const othersTotal = Object.entries(prev).reduce((sum, [id, n]) => id === standId ? sum : sum + n, 0);
+      const capForStand = Math.ceil(originalTotalStaff * 1.2) - othersTotal;
+      return { ...prev, [standId]: Math.min(clamped, capForStand) };
+    });
+  }, [originalTotalStaff]);
 
   const updateServiceRate = useCallback((standId: string, value: number) => {
     setServiceRateConfig((prev) => ({ ...prev, [standId]: Math.max(0, value) }));
   }, []);
 
-  const applyRecommendedMove = useCallback(
-    (move: RecommendedMove, moveKey: string) => {
-      setAppliedMoves((prev) => new Map(prev).set(moveKey, move));
+  const applyRecommendation = useCallback(
+    (rec: PortableStationRecommendation, recKey: string) => {
+      setAppliedMoves((prev) => new Map(prev).set(recKey, rec));
       setStaffConfig((prev) => ({
         ...prev,
-        [move.fromStandId]: Math.max(0, (prev[move.fromStandId] ?? 0) - move.staffCount),
-        [move.toStandId]: (prev[move.toStandId] ?? 0) + move.staffCount,
+        [rec.targetStandId]: (prev[rec.targetStandId] ?? 0) + rec.staffCount,
       }));
     },
     []
   );
 
-  const undoMove = useCallback(
-    (moveKey: string, move: RecommendedMove) => {
+  const undoRecommendation = useCallback(
+    (recKey: string, rec: PortableStationRecommendation) => {
       setAppliedMoves((prev) => {
         const next = new Map(prev);
-        next.delete(moveKey);
+        next.delete(recKey);
         return next;
       });
       setStaffConfig((prev) => ({
         ...prev,
-        [move.fromStandId]: (prev[move.fromStandId] ?? 0) + move.staffCount,
-        [move.toStandId]: Math.max(0, (prev[move.toStandId] ?? 0) - move.staffCount),
+        [rec.targetStandId]: Math.max(0, (prev[rec.targetStandId] ?? 0) - rec.staffCount),
       }));
     },
     []
@@ -150,11 +158,10 @@ export default function SimulatorPage() {
   }
 
   // Calculate total staff to detect net changes
-  const originalTotalStaff = forecast
-    ? forecast.stands.reduce((sum, sf) => sum + sf.stand.staffCount, 0)
-    : 0;
+  const maxStaff = Math.ceil(originalTotalStaff * 1.2);
   const currentTotalStaff = Object.values(staffConfig).reduce((sum, n) => sum + n, 0);
   const staffDelta = currentTotalStaff - originalTotalStaff;
+  const atStaffCap = currentTotalStaff >= maxStaff;
 
   // --- Render ---
 
@@ -258,15 +265,17 @@ export default function SimulatorPage() {
         />
         <KPICard
           label="Total Staff Deployed"
-          value={`${currentTotalStaff}`}
+          value={`${currentTotalStaff} / ${maxStaff}`}
           sublabel={
-            staffDelta === 0
+            atStaffCap
+              ? "At maximum capacity"
+              : staffDelta === 0
               ? "No net change"
               : staffDelta > 0
               ? `+${staffDelta} from baseline`
               : `${staffDelta} from baseline`
           }
-          variant={staffDelta !== 0 ? "warning" : "default"}
+          variant={atStaffCap ? "danger" : staffDelta !== 0 ? "warning" : "default"}
         />
       </div>
 
@@ -436,7 +445,12 @@ export default function SimulatorPage() {
                         />
                         <button
                           onClick={() => updateStaff(standId, newStaff + 1)}
-                          className="w-7 h-7 flex items-center justify-center rounded bg-gray-800 border border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors text-sm font-medium"
+                          disabled={atStaffCap}
+                          className={`w-7 h-7 flex items-center justify-center rounded bg-gray-800 border border-gray-600 transition-colors text-sm font-medium ${
+                            atStaffCap
+                              ? "text-gray-600 cursor-not-allowed"
+                              : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                          }`}
                           aria-label={`Increase staff for ${sf.stand.name}`}
                         >
                           +
@@ -510,51 +524,49 @@ export default function SimulatorPage() {
         </div>
       </div>
 
-      {/* Recommended Moves */}
+      {/* Recommended Portable Stations */}
       {simResult && (() => {
-        const pendingMoves = simResult.recommendedMoves.filter((move) => {
-          const moveKey = `${move.fromStandId}-${move.toStandId}-${move.window}`;
-          return !appliedMoves.has(moveKey);
+        const pendingRecs = simResult.recommendedMoves.filter((rec) => {
+          const recKey = `${rec.targetStandId}-${rec.window}`;
+          return !appliedMoves.has(recKey);
         });
-        return pendingMoves.length > 0 ? (
+        return pendingRecs.length > 0 ? (
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
-            <h2 className="text-lg font-semibold text-white mb-4">Recommended Moves</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">Recommended Portable Stations</h2>
             <div className="space-y-3">
-              {pendingMoves.map((move, i) => {
-                const moveKey = `${move.fromStandId}-${move.toStandId}-${move.window}`;
+              {pendingRecs.map((rec, i) => {
+                const recKey = `${rec.targetStandId}-${rec.window}`;
                 return (
                   <div
-                    key={`${moveKey}-${i}`}
+                    key={`${recKey}-${i}`}
                     className="flex items-center justify-between gap-4 py-3 px-4 bg-gray-800 rounded-lg"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm">
-                        Move{" "}
+                        Deploy portable station near{" "}
                         <span className="font-semibold text-blue-400">
-                          {move.staffCount} staff
+                          {rec.targetStandName}
                         </span>{" "}
-                        from{" "}
-                        <span className="font-medium text-gray-200">
-                          {move.fromStandName}
-                        </span>{" "}
-                        to{" "}
-                        <span className="font-medium text-gray-200">
-                          {move.toStandName}
-                        </span>{" "}
+                        <span className="text-gray-400">({rec.targetLocation})</span>{" "}
                         during{" "}
-                        <span className="font-mono text-yellow-400">{move.window}</span>
-                        {" "}&mdash;{" "}saves{" "}
+                        <span className="font-mono text-yellow-400">{rec.window}</span>
+                        {" "}&mdash;{" "}recovers{" "}
                         <span className="font-semibold text-green-400">
-                          ${move.revenueImpact.toLocaleString()}
+                          ${rec.revenueImpact.toLocaleString()}
                         </span>
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">{move.reason}</p>
+                      <p className="text-xs text-gray-500 mt-1">{rec.reason}</p>
                     </div>
                     <button
-                      onClick={() => applyRecommendedMove(move, moveKey)}
-                      className="shrink-0 px-4 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 bg-blue-600 text-white hover:bg-blue-500 focus:ring-blue-500"
+                      onClick={() => applyRecommendation(rec, recKey)}
+                      disabled={atStaffCap}
+                      className={`shrink-0 px-4 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 ${
+                        atStaffCap
+                          ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                          : "bg-blue-600 text-white hover:bg-blue-500 focus:ring-blue-500"
+                      }`}
                     >
-                      Apply
+                      Deploy
                     </button>
                   </div>
                 );
@@ -563,56 +575,49 @@ export default function SimulatorPage() {
           </div>
         ) : simResult.recommendedMoves.length === 0 ? (
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-5">
-            <h2 className="text-lg font-semibold text-white mb-2">Recommended Moves</h2>
+            <h2 className="text-lg font-semibold text-white mb-2">Recommended Portable Stations</h2>
             <p className="text-gray-400 text-sm">
-              No additional redeployment recommendations at this time. The current configuration
+              No portable station deployments recommended. The current configuration
               appears optimal.
             </p>
           </div>
         ) : null;
       })()}
 
-      {/* Applied Changes */}
+      {/* Deployed Stations */}
       {appliedMoves.size > 0 && (
         <div className="bg-gray-900 border border-green-800 rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <span className="w-2 h-2 rounded-full bg-green-400" />
-            <h2 className="text-lg font-semibold text-white">Applied Changes</h2>
-            <span className="text-xs text-gray-400">({appliedMoves.size} move{appliedMoves.size !== 1 ? "s" : ""})</span>
+            <h2 className="text-lg font-semibold text-white">Deployed Stations</h2>
+            <span className="text-xs text-gray-400">({appliedMoves.size} station{appliedMoves.size !== 1 ? "s" : ""})</span>
           </div>
           <div className="space-y-3">
-            {Array.from(appliedMoves.entries()).map(([moveKey, move]) => (
+            {Array.from(appliedMoves.entries()).map(([recKey, rec]) => (
               <div
-                key={moveKey}
+                key={recKey}
                 className="flex items-center justify-between gap-4 py-3 px-4 bg-green-950/30 border border-green-900/50 rounded-lg"
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm">
-                    Move{" "}
+                    Portable station near{" "}
                     <span className="font-semibold text-blue-400">
-                      {move.staffCount} staff
+                      {rec.targetStandName}
                     </span>{" "}
-                    from{" "}
-                    <span className="font-medium text-gray-200">
-                      {move.fromStandName}
-                    </span>{" "}
-                    to{" "}
-                    <span className="font-medium text-gray-200">
-                      {move.toStandName}
-                    </span>{" "}
+                    <span className="text-gray-400">({rec.targetLocation})</span>{" "}
                     during{" "}
-                    <span className="font-mono text-yellow-400">{move.window}</span>
-                    {" "}&mdash;{" "}saves{" "}
+                    <span className="font-mono text-yellow-400">{rec.window}</span>
+                    {" "}&mdash;{" "}recovers{" "}
                     <span className="font-semibold text-green-400">
-                      ${move.revenueImpact.toLocaleString()}
+                      ${rec.revenueImpact.toLocaleString()}
                     </span>
                   </p>
                 </div>
                 <button
-                  onClick={() => undoMove(moveKey, move)}
+                  onClick={() => undoRecommendation(recKey, rec)}
                   className="shrink-0 px-4 py-2 text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white focus:ring-gray-500"
                 >
-                  Undo
+                  Remove
                 </button>
               </div>
             ))}

@@ -162,7 +162,7 @@ export default function DashboardPage() {
                     <OverloadBadge ratio={sf.peakOverloadRatio} />
                   </div>
                   <span className="text-[10px] text-gray-500">
-                    Overloaded in {sf.buckets.filter(b => b.overloadRatio > 1).length} of {sf.buckets.length} windows
+                    Overloaded in {sf.buckets.filter(b => b.overloadRatio > 1).length} of {sf.buckets.length} time slots
                   </span>
                 </div>
               </div>

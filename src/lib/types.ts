@@ -66,14 +66,13 @@ export interface SimulationResponse {
   newRevenueAtRisk: number;
   delta: number;
   stands: StandForecast[];
-  recommendedMoves: RecommendedMove[];
+  recommendedMoves: PortableStationRecommendation[];
 }
 
-export interface RecommendedMove {
-  fromStandId: string;
-  fromStandName: string;
-  toStandId: string;
-  toStandName: string;
+export interface PortableStationRecommendation {
+  targetStandId: string;
+  targetStandName: string;
+  targetLocation: string;
   staffCount: number;
   window: TimeBucket;
   revenueImpact: number;
