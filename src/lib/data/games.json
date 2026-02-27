@@ -1,0 +1,62 @@
+[
+  {
+    "id": "game-1",
+    "opponent": "Tri-City",
+    "date": "2024-09-20",
+    "venue": "Save-On-Foods Memorial Centre",
+    "expectedAttendance": 4218,
+    "puckDropTime": "19:05",
+    "status": "completed",
+    "note": null
+  },
+  {
+    "id": "game-2",
+    "opponent": "Prince Albert",
+    "date": "2024-10-18",
+    "venue": "Save-On-Foods Memorial Centre",
+    "expectedAttendance": 3114,
+    "puckDropTime": "19:05",
+    "status": "completed",
+    "note": null
+  },
+  {
+    "id": "game-3",
+    "opponent": "Saskatoon",
+    "date": "2024-11-03",
+    "venue": "Save-On-Foods Memorial Centre",
+    "expectedAttendance": 3421,
+    "puckDropTime": "15:05",
+    "status": "completed",
+    "note": null
+  },
+  {
+    "id": "game-4",
+    "opponent": "Seattle",
+    "date": "2024-11-30",
+    "venue": "Save-On-Foods Memorial Centre",
+    "expectedAttendance": 2340,
+    "puckDropTime": "18:05",
+    "status": "completed",
+    "note": null
+  },
+  {
+    "id": "game-5",
+    "opponent": "Vancouver",
+    "date": "2024-12-13",
+    "venue": "Save-On-Foods Memorial Centre",
+    "expectedAttendance": 2726,
+    "puckDropTime": "19:05",
+    "status": "completed",
+    "note": null
+  },
+  {
+    "id": "game-6",
+    "opponent": "Vancouver",
+    "date": "2024-03-14",
+    "venue": "Save-On-Foods Memorial Centre",
+    "expectedAttendance": 4942,
+    "puckDropTime": "19:05",
+    "status": "completed",
+    "note": null
+  }
+]

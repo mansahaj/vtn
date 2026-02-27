@@ -2,6 +2,7 @@
 
 import { useGameContext } from "@/lib/game-context";
 import KPICard from "@/components/shared/KPICard";
+import AIInsights from "@/components/shared/AIInsights";
 
 function OverloadBadge({ ratio }: { ratio: number }) {
   const pct = (ratio * 100).toFixed(0);
@@ -18,7 +19,7 @@ function OverloadBadge({ ratio }: { ratio: number }) {
 }
 
 export default function DashboardPage() {
-  const { forecast, isLoading, selectedGameId } = useGameContext();
+  const { forecast, isLoading, selectedGameId, fetchDurationMs, lastUpdatedAt } = useGameContext();
 
   if (!selectedGameId) {
     return (
@@ -42,12 +43,28 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8 p-6">
       {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Executive Dashboard</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          {forecast.game.opponent} &mdash; {forecast.game.date} &middot; {forecast.game.venue}
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Executive Dashboard</h1>
+          <p className="text-sm text-gray-400 mt-1">
+            {forecast.game.opponent} &mdash; {forecast.game.date} &middot; {forecast.game.venue}
+          </p>
+        </div>
+        {lastUpdatedAt && (
+          <span className="text-xs text-gray-400 font-mono mt-1">
+            Last updated: {lastUpdatedAt}
+          </span>
+        )}
       </div>
+
+      {/* Processing timer badge */}
+      {fetchDurationMs !== null && (
+        <div>
+          <span className="bg-gray-800 text-green-400 text-xs font-mono px-2 py-1 rounded">
+            Data processed in {fetchDurationMs.toFixed(2)}ms
+          </span>
+        </div>
+      )}
 
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -160,6 +177,9 @@ export default function DashboardPage() {
           ))}
         </ul>
       </div>
+
+      {/* AI Insights */}
+      <AIInsights gameId={selectedGameId} />
     </div>
   );
 }
